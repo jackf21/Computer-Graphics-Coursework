@@ -14,7 +14,7 @@ void Camera::calculateMatrices()
 	view = calculateView(eye, eye + front, worldUp);
 
 	// Calculate the projection matrix
-	projection = glm::perspective(fov, aspect, near, far);
+	projection = calculatePerspective(fov, aspect, near, far);
 }
 
 void Camera::rotateCamera(float radius, float rotationSpeed, glm::vec3 centrePos)
@@ -60,9 +60,22 @@ glm::mat4 Camera::calculateView(glm::vec3 eye, glm::vec3 target, glm::vec3 world
 	return view;
 }
 
+// My version of glm::perspective
 glm::mat4 Camera::calculatePerspective(float fov, float aspect, float near, float far)
 {
+	// Calculate extra values needed
+	float top = near * tanf(fov / 2);
+	float right = aspect * top;
 
+	// Create matrix
+	glm::mat4 perspective;
+	perspective[0][0] = near / right;
+	perspective[1][1] = near / top;
+	perspective[2][2] = -((far + near) / (far - near));
+	perspective[2][3] = -1.0f;
+	perspective[3][2] = -((2 * far * near) / (far - near));
+
+	return perspective;
 }
 
 
