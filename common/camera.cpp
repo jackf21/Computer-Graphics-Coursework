@@ -1,9 +1,9 @@
 #include <common/camera.hpp>
 
-Camera::Camera(const glm::vec3 Eye, const glm::vec3 Target, float FovAngle) {
+Camera::Camera(const glm::vec3 Eye, const glm::vec3 Target) {
 	eye = Eye;
 	target = Target;
-	fov = Maths::radians(FovAngle);
+	fov = Maths::radians(90.0f);
 }
 
 void Camera::calculateMatrices()
@@ -11,9 +11,11 @@ void Camera::calculateMatrices()
 	calculateCameraVectors();
 
 	// Calculate the view matrix
+	//view = glm::lookAt(eye, eye + front, worldUp);
 	view = calculateView(eye, eye + front, worldUp);
 
 	// Calculate the projection matrix
+	//projection = glm::perspective(fov, aspect, near, far);
 	projection = calculatePerspective(fov, aspect, near, far);
 }
 
@@ -28,8 +30,36 @@ void Camera::rotateCamera(float radius, float rotationSpeed, glm::vec3 centrePos
 void Camera::calculateCameraVectors()
 {
 	front = glm::vec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch));
-	right = glm::normalize(glm::cross(front, worldUp));
-	up = glm::cross(right, front);
+	right = Maths::normalise(Maths::cross(front, worldUp));
+	up = Maths::cross(right, front);
+}
+
+void Camera::quaternionCamera()
+{
+	// Calculate camera orientation quaternion from the Euler angles
+	//Quaternion orientation(-pitch, yaw);
+
+	// Calculate camera orientation quaternion from the Euler angles
+	Quaternion newOrientation(-pitch, yaw);
+
+	// Apply SLERP but only in third person
+	if (isThird)
+		orientation = Maths::SLERP(orientation, newOrientation, 0.2f);
+	else
+		orientation = Maths::SLERP(orientation, newOrientation, 1.0f);
+
+	// Calculate the view matrix
+	view = orientation.matrix() * Maths::translate(-eye);
+	if (isThird)
+		view = Maths::translate(glm::vec3(0.0f, 0.0f, -3.0f)) * view;
+
+	// Calculate the projection matrix
+	projection = calculatePerspective(fov, aspect, near, far);
+
+	// Calculate camera vectors from view matrix
+	right = glm::vec3(view[0][0], view[1][0], view[2][0]);
+	up = glm::vec3(view[0][1], view[1][1], view[2][1]);
+	front = -glm::vec3(view[0][2], view[1][2], view[2][2]);
 }
 
 // My version of glm::lookAt
@@ -55,8 +85,8 @@ glm::mat4 Camera::calculateView(glm::vec3 eye, glm::vec3 target, glm::vec3 world
 	rotate[3][3] = 1.0f;
 
 	// Calculate view matrix
-	glm::mat4  view = rotate * translate;
-	
+	glm::mat4  view = Maths::transpose(rotate) * Maths::transpose(translate);
+
 	return view;
 }
 
@@ -77,5 +107,3 @@ glm::mat4 Camera::calculatePerspective(float fov, float aspect, float near, floa
 
 	return perspective;
 }
-
-

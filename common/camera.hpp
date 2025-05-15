@@ -11,7 +11,7 @@ public:
     // Projection parameters
     float fov;
     float aspect = 1024.0f / 768.0f;
-    float near = 0.2f;
+    float near = 0.1f;
     float far = 100.0f;
 
     // Camera vectors
@@ -30,18 +30,25 @@ public:
 
     // Movement control
     bool isJumping = false;
+    bool isThird = false;
+    bool isFreeCam = false;
 
     // Camera Euler angles
-    float yaw = Maths::radians(-90.0f);
+    float yaw = 0.0f;
     float pitch = 0.0f;
     float roll = 0.0f;
+
+    // Quaternion camera
+    Quaternion orientation = Quaternion(pitch, yaw);
+
     // Constructor
-    Camera(const glm::vec3 eye, const glm::vec3 target, float fovAngle);
+    Camera(const glm::vec3 eye, const glm::vec3 target);
 
     // Methods
     void calculateMatrices();
     void rotateCamera(float radius, float rotationSpeed, glm::vec3 centrePos); // Simple function to rotate the camera around a position
     void calculateCameraVectors();
+    void quaternionCamera();
 
 private:
     glm::mat4 calculateView(glm::vec3 eye, glm::vec3 target, glm::vec3 worldUp);

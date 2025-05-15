@@ -1,5 +1,81 @@
 #include <common/maths.hpp>
 
+// Quaternions
+Quaternion::Quaternion() {}
+
+Quaternion::Quaternion(const float w, const float x, const float y, const float z)
+{
+    this->w = w;
+    this->x = x;
+    this->y = y;
+    this->z = z;
+}
+
+Quaternion::Quaternion(const float pitch, const float yaw)
+{
+    float cosPitch = cos(0.5f * pitch);
+    float sinPitch = sin(0.5f * pitch);
+    float cosYaw = cos(0.5f * yaw);
+    float sinYaw = sin(0.5f * yaw);
+
+    this->w = cosPitch * cosYaw;
+    this->x = sinPitch * cosYaw;
+    this->y = cosPitch * sinYaw;
+    this->z = sinPitch * sinYaw;
+}
+
+glm::mat4 Quaternion::matrix()
+{
+    float s = 2.0f / (w * w + x * x + y * y + z * z);
+    float xs = x * s, ys = y * s, zs = z * s;
+    float xx = x * xs, xy = x * ys, xz = x * zs;
+    float yy = y * ys, yz = y * zs, zz = z * zs;
+    float xw = w * xs, yw = w * ys, zw = w * zs;
+
+    glm::mat4 rotate;
+    rotate[0][0] = 1.0f - (yy + zz);
+    rotate[0][1] = xy + zw;
+    rotate[0][2] = xz - yw;
+    rotate[1][0] = xy - zw;
+    rotate[1][1] = 1.0f - (xx + zz);
+    rotate[1][2] = yz + xw;
+    rotate[2][0] = xz + yw;
+    rotate[2][1] = yz - xw;
+    rotate[2][2] = 1.0f - (xx + yy);
+
+    return rotate;
+}
+
+// SLERP
+Quaternion Maths::SLERP(Quaternion q1, Quaternion q2, const float t)
+{
+    // Calculate cos(theta)
+    float cosTheta = q1.w * q2.w + q1.x * q2.x + q1.y * q2.y + q1.z * q2.z;
+
+    // If q1 and q2 are close together return q2 to avoid divide by zero errors
+    if (cosTheta > 0.9999f)
+        return q2;
+
+    // Avoid taking the long path around the sphere by reversing sign of q2
+    if (cosTheta < 0)
+    {
+        q2 = Quaternion(-q2.w, -q2.x, -q2.y, -q2.z);
+        cosTheta = -cosTheta;
+    }
+
+    // Calculate SLERP
+    Quaternion q;
+    float theta = acos(cosTheta);
+    float a = sin((1.0f - t) * theta) / sin(theta);
+    float b = sin(t * theta) / sin(theta);
+    q.w = a * q1.w + b * q2.w;
+    q.x = a * q1.x + b * q2.x;
+    q.y = a * q1.y + b * q2.y;
+    q.z = a * q1.z + b * q2.z;
+
+    return q;
+}
+
 glm::mat4 Maths::translate(const glm::vec3& v) {
     glm::mat4 translate(1.0f);
     translate[3][0] = v.x, translate[3][1] = v.y, translate[3][2] = v.z;
@@ -18,25 +94,54 @@ float Maths::radians(float angle) {
 
 glm::mat4 Maths::rotate(const float& angle, glm::vec3 v)
 {
-    v = glm::normalize(v);
-    float c = cos(angle);
-    float s = sin(angle);
-    float x2 = v.x * v.x, y2 = v.y * v.y, z2 = v.z * v.z;
-    float xy = v.x * v.y, xz = v.x * v.z, yz = v.y * v.z;
-    float xs = v.x * s, ys = v.y * s, zs = v.z * s;
+    v = Maths::normalise(v);
+    float c = cos(0.5f * angle);
+    float s = sin(0.5f * angle);
+    Quaternion q(c, s * v.x, s * v.y, s * v.z);
 
-    glm::mat4 rotate;
-    rotate[0][0] = (1 - c) * x2 + c;
-    rotate[0][1] = (1 - c) * xy + zs;
-    rotate[0][2] = (1 - c) * xz - ys;
-    rotate[1][0] = (1 - c) * xy - zs;
-    rotate[1][1] = (1 - c) * y2 + c;
-    rotate[1][2] = (1 - c) * yz + xs;
-    rotate[2][0] = (1 - c) * xz + ys;
-    rotate[2][1] = (1 - c) * yz - xs;
-    rotate[2][2] = (1 - c) * z2 + c;
+    return q.matrix();
+}
 
-    return rotate;
+float Maths::length(glm::vec3 vector)
+{
+    return sqrtf((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
+}
+
+glm::vec3 Maths::normalise(glm::vec3 vector)
+{
+    float vHat = length(vector);
+    return vector / vHat;
+}
+
+float Maths::dot(glm::vec3 a, glm::vec3 b)
+{
+    return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+glm::vec3 Maths::cross(glm::vec3 a, glm::vec3 b)
+{
+    glm::vec3 crossProduct;
+
+    crossProduct.x = (a.y * b.z) - (a.z * b.y);
+    crossProduct.y = (a.z * b.x) - (a.x * b.z);
+    crossProduct.z = (a.x * b.y) - (a.y * b.x);
+
+    return crossProduct;
+}
+
+glm::mat4 Maths::transpose(glm::mat4 matrix)
+{
+    glm::mat4 matrixT;
+
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            matrixT[j][i] = matrix[i][j];
+        }
+    }
+
+    return matrixT;
 }
 
 float Maths::clamp(float value, float min, float max) {
@@ -47,4 +152,14 @@ float Maths::clamp(float value, float min, float max) {
         value = min;
     }
     return value;
+}
+
+float Maths::square(float value)
+{
+    return value * value;
+}
+
+float Maths::lerp(float a, float b, float t)
+{
+    return (a + t * (b - a));
 }
